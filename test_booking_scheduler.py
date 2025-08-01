@@ -8,13 +8,15 @@ from communication import SmsSender, MailSender
 from booking_scheduler import BookingScheduler
 from test_communication import TestableSmsSender, TestableMailSender
 
+FORMAT = "%Y/%m/%d %H:%M"
+
 CAPACITY_PER_HOUR = 3
 UNDER_CAPACITY = 1
 
 PROPER_TIME = "2021/03/26 09:00"
 NOT_PROPER_TIME = "2021/03/26 09:05"
-NOT_ON_THE_HOUR = datetime.strptime(NOT_PROPER_TIME, "%Y/%m/%d %H:%M")
-ON_THE_HOUR = datetime.strptime(PROPER_TIME, "%Y/%m/%d %H:%M")
+NOT_ON_THE_HOUR = datetime.strptime(NOT_PROPER_TIME, FORMAT)
+ON_THE_HOUR = datetime.strptime(PROPER_TIME, FORMAT)
 
 SUNDAY = "2021/03/28 17:00"
 MONDAY = "2024/06/03 17:00"
@@ -26,7 +28,7 @@ class TestableBookingScheduler(BookingScheduler):
         self._date_time = date_time
 
     def get_now(self):
-        return datetime.strptime(self._date_time, "%Y/%m/%d %H:%M")
+        return datetime.strptime(self._date_time, FORMAT)
 
 
 @pytest.fixture
@@ -127,16 +129,26 @@ def test_이메일이_있는_경우에는_이메일_발송(booking_scheduler_wit
     mail_mock.send_mail.assert_called_once()
 
 
-def test_현재날짜가_일요일인_경우_예약불가_예외처리(customer):
-    booking_scheduler = TestableBookingScheduler(CAPACITY_PER_HOUR, SUNDAY)
+def test_현재날짜가_일요일인_경우_예약불가_예외처리(customer, mocker):
+    mock_get_now = mocker.patch(
+        'booking_scheduler.BookingScheduler.get_now',
+        return_value=datetime.strptime(SUNDAY, FORMAT)
+    )
+
+    booking_scheduler = BookingScheduler(CAPACITY_PER_HOUR)
     schedule = Schedule(ON_THE_HOUR, UNDER_CAPACITY, customer)
 
     with pytest.raises(ValueError):
         booking_scheduler.add_schedule(schedule)
 
 
-def test_현재날짜가_일요일이_아닌경우_예약가능(customer):
-    booking_scheduler = TestableBookingScheduler(CAPACITY_PER_HOUR, MONDAY)
+def test_현재날짜가_일요일이_아닌경우_예약가능(customer, mocker):
+    mock_get_now = mocker.patch(
+        'booking_scheduler.BookingScheduler.get_now',
+        return_value=datetime.strptime(MONDAY, FORMAT)
+    )
+
+    booking_scheduler = BookingScheduler(CAPACITY_PER_HOUR)
     schedule = Schedule(ON_THE_HOUR, UNDER_CAPACITY, customer)
 
     booking_scheduler.add_schedule(schedule)
